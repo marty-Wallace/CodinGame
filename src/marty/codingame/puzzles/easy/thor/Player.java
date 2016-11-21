@@ -1,8 +1,6 @@
 package marty.codingame.puzzles.easy.thor;
 
 import java.util.*;
-import java.io.*;
-import java.math.*;
 
 /**
  * @author marty

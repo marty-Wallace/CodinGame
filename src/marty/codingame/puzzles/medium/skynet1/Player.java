@@ -1,4 +1,4 @@
-package marty.codingame.puzzles.easy.skynet1;
+package marty.codingame.puzzles.medium.skynet1;
 
 import java.util.*;
 

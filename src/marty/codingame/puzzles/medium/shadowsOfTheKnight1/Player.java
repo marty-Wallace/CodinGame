@@ -1,4 +1,4 @@
-package marty.codingame.puzzles.easy.shadowsOfTheKnight1;
+package marty.codingame.puzzles.medium.shadowsOfTheKnight1;
 
 import java.util.Scanner;
 
@@ -24,25 +24,22 @@ public class Player {
             String bombDir = in.next(); // the direction of the bombs from batman's current location (U, UR, R, DR, D, DL, L or UL)
             for(char c : bombDir.toCharArray()){
                 switch (c){
-                    case 'U':
-                        minI = X + 1;
-                        break;
-
-                    case 'D':
-                        maxI = X - 1;
-                        break;
-
                     case 'L':
-                        maxJ = Y - 1;
+                        maxJ = X - 1;
                         break;
-
                     case 'R':
-                        minJ = Y + 1;
+                        minJ = X + 1;
+                        break;
+                    case 'U':
+                        maxI = Y - 1;
+                        break;
+                    case 'D':
+                        minI = Y + 1;
                         break;
                 }
             }
-            X = (minI + maxI) / 2;
-            Y = (minJ + maxJ) / 2;
+            Y = (minI + maxI) / 2;
+            X = (minJ + maxJ) / 2;
             System.out.println(X + " " + Y);
         }
     }
