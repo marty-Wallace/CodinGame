@@ -19,18 +19,18 @@ macro_rules! parse_input {
 struct Factory {
     id: usize,
     owner: i8,
-    population: u32,
-    prod: u32,
+    population: i32,
+    prod: i32,
 }
 
 #[derive(Debug, Clone, Copy)]
 struct Troop {
     id: usize,
     owner: i8,
-    pop: u32,
-    from: u32,
-    target: u32,
-    turns: u32,
+    pop: i32,
+    from: i32,
+    target: i32,
+    turns: i32,
 }
 
 #[allow(dead_code)]
@@ -41,7 +41,7 @@ fn main() {
     io::stdin().read_line(&mut input_line).unwrap();
     let factory_count = parse_input!(input_line, usize); // the number of factories
 
-    let mut distances = vec![vec![0_u32; factory_count]; factory_count];
+    let mut distances = vec![vec![0_i32; factory_count]; factory_count];
 
     let mut input_line = String::new();
     io::stdin().read_line(&mut input_line).unwrap();
@@ -54,7 +54,7 @@ fn main() {
         let inputs = input_line.split(" ").collect::<Vec<_>>();
         let factory_1 = parse_input!(inputs[0], usize);
         let factory_2 = parse_input!(inputs[1], usize);
-        let distance = parse_input!(inputs[2], u32);
+        let distance = parse_input!(inputs[2], i32);
         distances[factory_1][factory_2] = distance;
         distances[factory_2][factory_1] = distance;
 
@@ -76,39 +76,34 @@ fn main() {
             let inputs = input_line.split(" ").collect::<Vec<_>>();
             let entity_id = parse_input!(inputs[0], usize);
             let entity_type = inputs[1].trim().to_string();
-            let arg_1 = parse_input!(inputs[2], i8); // owner -1, 0, or 1
-            let arg_2 = parse_input!(inputs[3], u32); // num of cyborgs or where troop leaves from
-            let arg_3 = parse_input!(inputs[4], u32); // fact prod 0-3 or where troop headed
-            let arg_4 = parse_input!(inputs[5], u32); // num of cyborgs in troop
-            let arg_5 = parse_input!(inputs[6], u32); // turns until arrival
+            let arg_1 = parse_input!(inputs[2], i8);  // owner -1, 0, or 1
+            let arg_2 = parse_input!(inputs[3], i32); // num of cyborgs or where troop leaves from
+            let arg_3 = parse_input!(inputs[4], i32); // fact prod 0-3 or where troop headed
+            let arg_4 = parse_input!(inputs[5], i32); // num of cyborgs in troop
+            let arg_5 = parse_input!(inputs[6], i32); // turns until arrival
 
 
-            match entity_type {
-                "TROOP" => {
-                    troops.push(Troop {
-                        id: entity_id,
-                        owner: arg_1,
-                        pop: arg_4,
-                        from: arg_2,
-                        target: arg_3,
-                        turns: arg_5,
-                    });
-                },
-                "FACTORY" => {
-                    factories.push(Factory {
-                        id: entity_id,
-                        owner: arg_1,
-                        population: arg_2,
-                        prod: arg_3,
-                    });
-                },
-                "BOMB" => {
+            if entity_type == "TROOP" {
+                troops.push(Troop {
+                    id: entity_id,
+                    owner: arg_1,
+                    pop: arg_4,
+                    from: arg_2,
+                    target: arg_3,
+                    turns: arg_5,
+                });
+            }else if entity_type == "FACTORY" {
+                factories.push(Factory {
+                    id: entity_id,
+                    owner: arg_1,
+                    population: arg_2,
+                    prod: arg_3,
+                });
+            }else if entity_type == "BOMB" {
 
-                },
-                _ => {
-                    // should never happen
-                    unreachable!();
-                }
+            }else {
+                // should never happen
+                unreachable!();
             }
 
         }
@@ -121,10 +116,10 @@ fn main() {
 }
 
 
-type Mov = u32;
+type Mov = i32;
 
 
-fn mov_value(f1: &Factory, f2: &Factory, distance: u32) -> Mov {
+fn mov_value(f1: &Factory, f2: &Factory, distance: i32) -> Mov {
     let mut value = (20-distance) * 5;
     value *= f1.population;
     if f2.owner == -1 {
@@ -138,12 +133,12 @@ fn mov_value(f1: &Factory, f2: &Factory, distance: u32) -> Mov {
     value
 }
 
-fn do_move(factories: &mut Vec<Factory>, troops: &mut Vec<Troop>, distances: &mut Vec<Vec<u32>> ) -> bool {
+fn do_move(factories: &mut Vec<Factory>, troops: &mut Vec<Troop>, distances: &mut Vec<Vec<i32>> ) -> bool {
 
     let mut from = None;
     let mut to = None;
     let mut best = 0_32;
-    let mut count = 0_u32;
+    let mut count = 0;
 
     for factory in factories.iter() {
         for factory2 in factories.iter() {
