@@ -1,6 +1,6 @@
 use std::io;
 
-#[allow(dead_code)]
+
 
 macro_rules! print_err {
     ($($arg:tt)*) => (
@@ -33,8 +33,86 @@ struct Troop {
     turns: i32,
 }
 
-#[allow(dead_code)]
-#[allow(unused_variables)]
+#[derive(Debug, Clone, Copy)]
+struct Bomb {
+    id: usize,
+    owner: i8,
+    from: i32,
+    target: i32,
+    turns: i32
+}
+
+
+#[derive(Debug)]
+struct State {
+    factories: Vec<Factory>,
+    troops: Vec<Troop>,
+    bombs: Vec<Bomb>,
+    my_bombs: i32,
+    enemy_bombs: i32,
+}
+
+impl Factory {
+    fn new(id: usize, owner: i8, population: i32, prod: i32) -> Self {
+        Factory{
+            id: id,
+            owner: owner,
+            population: population,
+            prod: prod,
+        }
+    }
+
+    fn bomb_result(&self) -> i32 {
+        if self.population > 21 {
+            self.population / 2
+        }else{
+            10
+        }
+    }
+
+    fn bomb(&mut self) {
+        self.population -= self.bomb_result();
+    }
+}
+
+impl Troop {
+    fn new(id: usize, owner: i8, pop: i32, from: i32, target: i32, turns: i32) -> Self {
+        Troop{
+            id: id,
+            owner: owner,
+            pop: pop,
+            from: from,
+            target: target,
+            turns: turns,
+        }
+    }
+}
+
+impl Bomb{
+    fn new(id: usize, owner: i8, from: i32, target: i32, turns: i32) -> Self {
+        Bomb {
+            id: id,
+            owner: owner,
+            from: from,
+            target: target,
+            turns: turns,
+        }
+    }
+}
+
+impl State {
+    fn new(factories: Vec<Factory>, troops: Vec<Troop>, bombs: Vec<Bomb>, my_bombs: i32, enemy_bombs: i32) -> Self {
+        State {
+            factories: factories,
+            troops: troops,
+            bombs: bombs,
+            my_bombs: my_bombs,
+            enemy_bombs: enemy_bombs,
+        }
+    }
+}
+
+#[allow(unused_variables, dead_code)]
 fn main() {
 
     let mut input_line = String::new();
@@ -60,8 +138,18 @@ fn main() {
 
     }
 
+    // we need to keep track of which bombs we've seen
+    let mut bombs_cur: Vec<Bomb> = Vec::with_capacity(4);
+
+
+    let mut my_bombs = 2;
+    let mut enemy_bombs = 2;
+
+    let mut count = 0;
+
     // game loop
     loop {
+        count += 1;
         let mut input_line = String::new();
         io::stdin().read_line(&mut input_line).unwrap();
         print_err!("{}", input_line);
@@ -69,6 +157,8 @@ fn main() {
 
         let mut factories = Vec::with_capacity(factory_count);
         let mut troops = Vec::with_capacity(entity_count - factory_count);
+        let mut bombs = Vec::with_capacity(4);
+
 
         for i in 0..entity_count as usize {
             let mut input_line = String::new();
@@ -82,48 +172,70 @@ fn main() {
             let arg_4 = parse_input!(inputs[5], i32); // num of cyborgs in troop
             let arg_5 = parse_input!(inputs[6], i32); // turns until arrival
 
-
             if entity_type == "TROOP" {
-                troops.push(Troop {
-                    id: entity_id,
-                    owner: arg_1,
-                    pop: arg_4,
-                    from: arg_2,
-                    target: arg_3,
-                    turns: arg_5,
-                });
+                troops.push(Troop::new(
+                    entity_id,
+                    arg_1,
+                    arg_4,
+                    arg_2,
+                    arg_3,
+                    arg_5,
+                ));
             }else if entity_type == "FACTORY" {
-                factories.push(Factory {
-                    id: entity_id,
-                    owner: arg_1,
-                    population: arg_2,
-                    prod: arg_3,
-                });
+                factories.push(Factory::new(
+                    entity_id,
+                    arg_1,
+                    arg_2,
+                    arg_3,
+                ));
             }else if entity_type == "BOMB" {
-
+                bombs.push(Bomb::new(
+                    entity_id,
+                    arg_1,
+                    arg_2,
+                    arg_3,
+                    arg_4,
+                ));
             }else {
                 // should never happen
                 unreachable!();
             }
-
         }
 
-        if !do_move(&mut factories, &mut troops, &mut distances){
+        // this should only subtract bomb counts when it is a new bomb.
+        for bomb in bombs.iter() {
+            let mut i = -1;
+            for (index, other_bomb) in bombs_cur.iter().enumerate() {
+                if bomb.id == other_bomb.id {
+                    i = index as i32;
+                    break;
+                }
+            }
+            if i == -1 {
+                if bomb.owner == 1 {
+                    my_bombs -= 1;
+                }else{
+                    enemy_bombs -= 1;
+                }
+                bombs_cur.push(bomb.clone());
+            }
+        }
+
+        let state = State::new(factories, troops, bombs, my_bombs, enemy_bombs);
+
+        if !do_move(state, &distances){
             println!("WAIT");
         }
-
     }
 }
 
 
-type Mov = i32;
-
-
-fn mov_value(f1: &Factory, f2: &Factory, distance: i32) -> Mov {
+#[allow(unused_variables, dead_code)]
+fn mov_value(f1: &Factory, f2: &Factory, distance: i32) -> i32 {
     let mut value = (20-distance) * 5;
     value *= f1.population;
     if f2.owner == -1 {
-       value -= (f2.prod * 5);
+        value -= (f2.prod * 5);
     }
     value /= (f2.population+1);
 
@@ -133,12 +245,16 @@ fn mov_value(f1: &Factory, f2: &Factory, distance: i32) -> Mov {
     value
 }
 
-fn do_move(factories: &mut Vec<Factory>, troops: &mut Vec<Troop>, distances: &mut Vec<Vec<i32>> ) -> bool {
+#[allow(unused_variables, dead_code)]
+fn do_move(state: State, distances: &Vec<Vec<i32>> ) -> bool {
 
     let mut from = None;
     let mut to = None;
     let mut best = 0_32;
     let mut count = 0;
+
+    let factories = state.factories;
+    let troops = state.troops;
 
     for factory in factories.iter() {
         for factory2 in factories.iter() {
