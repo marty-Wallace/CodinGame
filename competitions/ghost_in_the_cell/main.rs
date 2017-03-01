@@ -1,6 +1,11 @@
 use std::io;
 
 
+const GROUPING_CONSTANT: i32 = 5;
+const TROOPS_CONSTANT: i32 = 5;
+const FACTORY_VALUE_CONSTANT: i32 = 5;
+const PRODUCTION_CONSTANT: i32 = 5;
+
 
 macro_rules! print_err {
     ($($arg:tt)*) => (
@@ -28,8 +33,8 @@ struct Troop {
     id: usize,
     owner: i8,
     pop: i32,
-    from: i32,
-    target: i32,
+    from: usize,
+    target: usize,
     turns: i32,
 }
 
@@ -37,8 +42,8 @@ struct Troop {
 struct Bomb {
     id: usize,
     owner: i8,
-    from: i32,
-    target: i32,
+    from: usize,
+    target: usize,
     turns: i32
 }
 
@@ -76,7 +81,7 @@ impl Factory {
 }
 
 impl Troop {
-    fn new(id: usize, owner: i8, pop: i32, from: i32, target: i32, turns: i32) -> Self {
+    fn new(id: usize, owner: i8, pop: i32, from: usize, target: usize, turns: i32) -> Self {
         Troop{
             id: id,
             owner: owner,
@@ -89,7 +94,7 @@ impl Troop {
 }
 
 impl Bomb{
-    fn new(id: usize, owner: i8, from: i32, target: i32, turns: i32) -> Self {
+    fn new(id: usize, owner: i8, from: usize, target: usize, turns: i32) -> Self {
         Bomb {
             id: id,
             owner: owner,
@@ -110,6 +115,74 @@ impl State {
             enemy_bombs: enemy_bombs,
         }
     }
+
+    fn send_troops(&mut self, from: usize, target: usize, count: i32, distances: &Vec<Vec<i32>>){
+        if self.factories[from].population < count {
+            unreachable!();
+        }
+        self.factories[from].population -= count;
+        self.troops.push(Troop::new(
+            0, //id, assigned by engine so not relevant here
+            1,
+            count,
+            from,
+            target,
+            distances[from][target]
+        ));
+    }
+
+    fn evaluate(&mut self, distances: &Vec<Vec<i32>>) -> i32 {
+        let mut my_total_troops = 0;
+        let mut enemy_total_troops = 0;
+
+        let mut my_total_production = 0;
+        let mut enemy_total_production = 0;
+
+        let mut my_total_factories = 0;
+        let mut enemy_total_factories = 0;
+
+        let mut my_grouping_count = 0;
+        let mut enemy_grouping_count = 0;
+
+        let mut my_factory_values = 0;
+        let mut enemy_factory_values = 0;
+
+        let mut total_group_amount = 0;
+
+        for factory in self.factories.iter() {
+            if factory.owner == 1 {
+                my_total_troops += factory.population;
+                my_total_factories += 1;
+                my_total_production += factory.prod;
+
+                my_factory_values += factory.prod * factory.population;
+            } else {
+                enemy_total_troops += factory.population;
+                enemy_total_factories += 1;
+                enemy_total_production += factory.prod;
+
+                enemy_factory_values += factory.prod * factory.population;
+            }
+
+            for other_factory in self.factories.iter() {
+                if factory.owner == other_factory.owner && factory.id != other_factory.id {
+                    if factory.owner == 1 {
+                        my_grouping_count += distances[factory.id][other_factory.id];
+                    } else {
+                        enemy_grouping_count += distances[factory.id][other_factory.id];
+                    }
+                }
+                total_group_amount += distances[factory.id][other_factory.id];
+            }
+        }
+
+
+        (my_total_troops - enemy_total_troops) * TROOPS_CONSTANT
+        + (my_factory_values - enemy_factory_values) * FACTORY_VALUE_CONSTANT
+        + (my_total_production - enemy_total_production) * PRODUCTION_CONSTANT
+        + (total_group_amount -  my_grouping_count) * GROUPING_CONSTANT
+    }
+
 }
 
 #[allow(unused_variables, dead_code)]
@@ -141,7 +214,6 @@ fn main() {
     // we need to keep track of which bombs we've seen
     let mut bombs_cur: Vec<Bomb> = Vec::with_capacity(4);
 
-
     let mut my_bombs = 2;
     let mut enemy_bombs = 2;
 
@@ -167,8 +239,8 @@ fn main() {
             let entity_id = parse_input!(inputs[0], usize);
             let entity_type = inputs[1].trim().to_string();
             let arg_1 = parse_input!(inputs[2], i8);  // owner -1, 0, or 1
-            let arg_2 = parse_input!(inputs[3], i32); // num of cyborgs or where troop leaves from
-            let arg_3 = parse_input!(inputs[4], i32); // fact prod 0-3 or where troop headed
+            let arg_2 = parse_input!(inputs[3], usize); // num of cyborgs or where troop leaves from
+            let arg_3 = parse_input!(inputs[4], usize); // fact prod 0-3 or where troop headed
             let arg_4 = parse_input!(inputs[5], i32); // num of cyborgs in troop
             let arg_5 = parse_input!(inputs[6], i32); // turns until arrival
 
@@ -185,8 +257,8 @@ fn main() {
                 factories.push(Factory::new(
                     entity_id,
                     arg_1,
-                    arg_2,
-                    arg_3,
+                    arg_2 as i32,
+                    arg_3 as i32,
                 ));
             }else if entity_type == "BOMB" {
                 bombs.push(Bomb::new(
@@ -244,6 +316,8 @@ fn mov_value(f1: &Factory, f2: &Factory, distance: i32) -> i32 {
     print_err!("value {}", value);
     value
 }
+
+
 
 #[allow(unused_variables, dead_code)]
 fn do_move(state: State, distances: &Vec<Vec<i32>> ) -> bool {
